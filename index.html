@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game do Mario</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #171717; color: white; font-family: Arial, sans-serif; }
+    h1 { margin: 0; font-size: 1.25rem; }
+    canvas { width: min(800px, 100vw); height: auto; aspect-ratio: 4 / 3; image-rendering: pixelated; background: #1645ff; }
+    p { margin: 0; padding: 0 12px; text-align: center; font-size: .95rem; }
+    .controls { display: flex; gap: 10px; }
+    button { font-size: 1.3rem; padding: 10px 18px; border: 0; border-radius: 10px; cursor: pointer; touch-action: none; }
+  </style>
+</head>
+<body>
+  <h1>🍄 Game do Mario</h1>
+  <canvas id="game" width="800" height="600" aria-label="Jogo do Mario"></canvas>
+  <p>Use as setas do teclado para mover o Mario. ↑ toca o som do pulo.</p>
+  <div class="controls" aria-label="Controles para celular">
+    <button data-key="ArrowLeft" aria-label="Mover para esquerda">⬅️</button>
+    <button data-key="ArrowUp" aria-label="Pular">⬆️</button>
+    <button data-key="ArrowDown" aria-label="Mover para baixo">⬇️</button>
+    <button data-key="ArrowRight" aria-label="Mover para direita">➡️</button>
+  </div>
+  <audio id="music" src="somdefundo-mario.mp3" loop preload="auto"></audio>
+  <audio id="jump" src="pulo-mario.ogg" preload="auto"></audio>
+  <audio id="step" src="passo.ogg" preload="auto"></audio>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const mario = new Image(); mario.src = 'mario.png';
+    const scenery = new Image(); scenery.src = 'cenario-mario.jpg';
+    const music = document.getElementById('music');
+    const jumpSound = document.getElementById('jump');
+    const stepSound = document.getElementById('step');
+    music.volume = 0.5;
+    let x = canvas.width * 0.3, y = canvas.height * 0.5;
+    const keys = new Set();
+    let started = false;
+    function startAudio() {
+      if (!started) { started = true; music.play().catch(() => {}); }
+    }
+    function press(key) {
+      startAudio();
+      if (!keys.has(key)) {
+        if (key === 'ArrowLeft' || key === 'ArrowRight') { stepSound.currentTime = 0; stepSound.play().catch(() => {}); }
+        if (key === 'ArrowUp') { jumpSound.currentTime = 0; jumpSound.play().catch(() => {}); }
+      }
+      keys.add(key);
+    }
+    function release(key) { keys.delete(key); }
+    window.addEventListener('keydown', e => {
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+      press(e.key);
+    });
+    window.addEventListener('keyup', e => release(e.key));
+    window.addEventListener('blur', () => keys.clear());
+    document.querySelectorAll('button[data-key]').forEach(btn => {
+      const key = btn.dataset.key;
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.setPointerCapture(e.pointerId); press(key); });
+      btn.addEventListener('pointerup', () => release(key));
+      btn.addEventListener('pointercancel', () => release(key));
+      btn.addEventListener('lostpointercapture', () => release(key));
+    });
+    function draw() {
+      // Mantém o comportamento do código Pygame original: imagens desenhadas a partir do canto (0, 0).
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (scenery.complete && scenery.naturalWidth) ctx.drawImage(scenery, 0, 0);
+      else { ctx.fillStyle = '#1645ff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+      if (keys.has('ArrowLeft')) x -= 1;
+      if (keys.has('ArrowRight')) x += 1;
+      if (keys.has('ArrowUp')) y -= 1;
+      if (keys.has('ArrowDown')) y += 1;
+      if (mario.complete && mario.naturalWidth) ctx.drawImage(mario, x, y);
+      requestAnimationFrame(draw);
+    }
+    Promise.all([new Promise(resolve => { mario.onload = resolve; mario.onerror = resolve; }), new Promise(resolve => { scenery.onload = resolve; scenery.onerror = resolve; })]).then(draw);
+  </script>
+</body>
+</html>
